@@ -7,12 +7,12 @@ export default defineConfig({
         react(),
         VitePWA({
             registerType: 'autoUpdate',
-            includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'masked-icon.svg'],
+            includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
             manifest: {
                 name: 'Rhyme Finder',
                 short_name: 'Rhyme Finder',
-                description: 'Find the perfect rhyming words for your lyrics and poems',
-                theme_color: '#6366F1',
+                description: 'AI-powered rhyme finding tool for poets and songwriters',
+                theme_color: '#7C3AED',
                 icons: [
                     {
                         src: 'pwa-192x192.png',
@@ -23,12 +23,6 @@ export default defineConfig({
                         src: 'pwa-512x512.png',
                         sizes: '512x512',
                         type: 'image/png'
-                    },
-                    {
-                        src: 'pwa-512x512.png',
-                        sizes: '512x512',
-                        type: 'image/png',
-                        purpose: 'any maskable'
                     }
                 ]
             }
