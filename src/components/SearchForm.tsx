@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MdSearch, MdTrendingUp, MdAutorenew, MdMood, MdStyle, MdContentCopy, MdCheck, MdWarning } from 'react-icons/md';
-import { initializeAI, generateRhymingLines, analyzeLine } from '../lib/aiService';
+import { MdSearch, MdAutorenew, MdMood, MdStyle, MdContentCopy, MdCheck, MdWarning } from 'react-icons/md';
+import { initializeAI, generateRhymingLines, analyzeLine, getUsageStats } from '../lib/aiService';
+import UsageDashboard from './UsageDashboard';
 
 interface SearchFormProps {
   onSearch: (word: string, rhymes: string[]) => void;
@@ -17,6 +18,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, isLoading }) => {
   const [style, setStyle] = useState<string>('');
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [usageError, setUsageError] = useState<string | null>(null);
 
   useEffect(() => {
     // Initialize OpenAI with API key from environment variable
@@ -45,6 +47,7 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, isLoading }) => {
 
     const lastWord = getLastWord(searchTerm);
     setApiError(null);
+    setUsageError(null);
     
     try {
       setIsGenerating(true);
@@ -62,8 +65,10 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, isLoading }) => {
           });
           setSuggestedLines(suggestions);
         } catch (error: any) {
-          console.error('OpenAI API Error:', error);
-          if (error?.message?.includes('insufficient_quota')) {
+          console.error('AI Service Error:', error);
+          if (error.message.includes('limit reached')) {
+            setUsageError(error.message);
+          } else if (error.message.includes('insufficient_quota')) {
             setApiError('OpenAI API credits required. Please set up billing at platform.openai.com');
           } else {
             setApiError('Unable to generate AI suggestions. Please try again later.');
@@ -239,6 +244,28 @@ const SearchForm: React.FC<SearchFormProps> = ({ onSearch, isLoading }) => {
               </a>
             </div>
           </motion.div>
+        )}
+
+        {/* Usage Error Message */}
+        {usageError && (
+          <motion.div
+            className="mt-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 flex items-start gap-3"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <MdWarning className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">Usage Limit Reached</p>
+              <p className="text-sm mt-1">{usageError}</p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Usage Dashboard */}
+        {isLineMode && (
+          <div className="mt-6">
+            <UsageDashboard usageStats={getUsageStats()} />
+          </div>
         )}
       </motion.div>
     </div>

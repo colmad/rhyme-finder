@@ -1,6 +1,78 @@
 import OpenAI from 'openai';
 
 let openai: OpenAI;
+const DAILY_LIMIT = 500;  // ~20-25 users with 20-25 requests each
+const HOURLY_LIMIT = 100; // ~10 users with 10 requests each per hour
+
+// Export the interface for the dashboard
+export interface UsageStats {
+  daily: {
+    count: number;
+    date: string;
+  };
+  hourly: {
+    count: number;
+    hour: string;
+  };
+}
+
+let usageStats: UsageStats = {
+  daily: {
+    count: 0,
+    date: new Date().toDateString()
+  },
+  hourly: {
+    count: 0,
+    hour: new Date().toISOString().split('T')[1].split(':')[0]
+  }
+};
+
+function resetUsageIfNeeded() {
+  const now = new Date();
+  const currentDate = now.toDateString();
+  const currentHour = now.toISOString().split('T')[1].split(':')[0];
+
+  // Reset daily count if it's a new day
+  if (currentDate !== usageStats.daily.date) {
+    usageStats.daily = {
+      count: 0,
+      date: currentDate
+    };
+  }
+
+  // Reset hourly count if it's a new hour
+  if (currentHour !== usageStats.hourly.hour) {
+    usageStats.hourly = {
+      count: 0,
+      hour: currentHour
+    };
+  }
+}
+
+function checkUsageLimits(): { allowed: boolean; reason?: string } {
+  resetUsageIfNeeded();
+
+  if (usageStats.daily.count >= DAILY_LIMIT) {
+    return { 
+      allowed: false, 
+      reason: 'Daily limit reached. Please try again tomorrow.' 
+    };
+  }
+
+  if (usageStats.hourly.count >= HOURLY_LIMIT) {
+    return { 
+      allowed: false, 
+      reason: 'Hourly limit reached. Please try again in the next hour.' 
+    };
+  }
+
+  return { allowed: true };
+}
+
+function incrementUsage() {
+  usageStats.daily.count++;
+  usageStats.hourly.count++;
+}
 
 export function initializeAI(apiKey: string) {
   openai = new OpenAI({ 
@@ -15,6 +87,11 @@ interface LineOptions {
 }
 
 export async function analyzeLine(line: string) {
+  const usageCheck = checkUsageLimits();
+  if (!usageCheck.allowed) {
+    throw new Error(usageCheck.reason);
+  }
+
   try {
     console.log('Analyzing line:', line);
     const completion = await openai.chat.completions.create({
@@ -32,6 +109,7 @@ export async function analyzeLine(line: string) {
       temperature: 0.7,
     });
 
+    incrementUsage();
     const response = completion.choices[0].message.content;
     console.log('Analysis response:', response);
     return JSON.parse(response || '{"mood": "neutral", "style": "modern"}');
@@ -42,6 +120,11 @@ export async function analyzeLine(line: string) {
 }
 
 export async function generateRhymingLines(line: string, options: LineOptions = {}) {
+  const usageCheck = checkUsageLimits();
+  if (!usageCheck.allowed) {
+    throw new Error(usageCheck.reason);
+  }
+
   try {
     const { mood = "neutral", style = "modern" } = options;
     console.log('Generating rhymes for:', line, 'with options:', options);
@@ -61,6 +144,7 @@ export async function generateRhymingLines(line: string, options: LineOptions = 
       temperature: 0.8,
     });
 
+    incrementUsage();
     const response = completion.choices[0].message.content;
     console.log('Generation response:', response);
     return response ? response.split('\n').filter(Boolean) : [];
@@ -68,4 +152,10 @@ export async function generateRhymingLines(line: string, options: LineOptions = 
     console.error('Error generating rhyming lines:', error);
     throw error; // Propagate the error to handle it in the component
   }
+}
+
+// Export usage stats for monitoring
+export function getUsageStats(): UsageStats {
+  resetUsageIfNeeded();
+  return usageStats;
 } 
